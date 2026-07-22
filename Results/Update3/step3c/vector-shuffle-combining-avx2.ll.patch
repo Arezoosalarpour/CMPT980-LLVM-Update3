@@ -1,0 +1,105 @@
+diff --git a/llvm/test/CodeGen/X86/vector-shuffle-combining-avx2.ll b/llvm/test/CodeGen/X86/vector-shuffle-combining-avx2.ll
+index 9b26f95f5147..4e9297e346bc 100644
+--- a/llvm/test/CodeGen/X86/vector-shuffle-combining-avx2.ll
++++ b/llvm/test/CodeGen/X86/vector-shuffle-combining-avx2.ll
+@@ -53,9 +53,11 @@ define <32 x i8> @combine_pshufb_vpermps(<8 x float> %a) {
+ 
+ define <32 x i8> @combine_and_pshufb(<32 x i8> %a0) {
+ ; CHECK-LABEL: combine_and_pshufb:
++; CHECK-NOT:     vpxor
++; CHECK-NOT:     vpand
++; CHECK-NOT:     vpblendw
+ ; CHECK:       # %bb.0:
+-; CHECK-NEXT:    vpxor %xmm1, %xmm1, %xmm1
+-; CHECK-NEXT:    vpblendw {{.*#+}} ymm0 = ymm0[0],ymm1[1,2,3],ymm0[4],ymm1[5,6,7],ymm0[8],ymm1[9,10,11],ymm0[12],ymm1[13,14,15]
++; CHECK-NEXT:    vpshufb {{.*}} ymm0 = ymm0[0,1],zero,zero,zero,zero,zero,zero,ymm0[8,9],zero,zero,zero,zero,zero,zero,ymm0[16,17],zero,zero,zero,zero,zero,zero,ymm0[24,25],zero,zero,zero,zero,zero,zero
+ ; CHECK-NEXT:    ret{{[l|q]}}
+   %1 = shufflevector <32 x i8> %a0, <32 x i8> zeroinitializer, <32 x i32> <i32 0, i32 1, i32 32, i32 32, i32 4, i32 5, i32 6, i32 7, i32 8, i32 9, i32 10, i32 11, i32 12, i32 13, i32 14, i32 15, i32 16, i32 17, i32 18, i32 19, i32 20, i32 21, i32 22, i32 23, i32 24, i32 25, i32 26, i32 27, i32 28, i32 29, i32 30, i32 31>
+   %2 = call <32 x i8> @llvm.x86.avx2.pshuf.b(<32 x i8> %1, <32 x i8> <i8 0, i8 1, i8 -1, i8 -1, i8 -1, i8 -1, i8 -1, i8 -1, i8 8, i8 9, i8 -1, i8 -1, i8 -1, i8 -1, i8 -1, i8 -1, i8 0, i8 1, i8 -1, i8 -1, i8 -1, i8 -1, i8 -1, i8 -1, i8 8, i8 9, i8 -1, i8 -1, i8 -1, i8 -1, i8 -1, i8 -1>)
+@@ -949,3 +951,86 @@ define void @packss_zext_v8i1() {
+   store <16 x i16> %tmp11, ptr undef, align 2
+   ret void
+ }
++
++; Step 3C — sparse identity-or-zero coverage (variants A/B/C family)
++define <32 x i8> @sparse_identity_or_zero_variant_a(<32 x i8> %a0) {
++; CHECK-LABEL: sparse_identity_or_zero_variant_a:
++; CHECK:       # %bb.0:
++; CHECK-NEXT:    vpshufb {{.*}} ymm0 = ymm0[0,1],zero,zero,zero,zero,zero,zero,ymm0[8,9],zero,zero,zero,zero,zero,zero,ymm0[16,17],zero,zero,zero,zero,zero,zero,ymm0[24,25],zero,zero,zero,zero,zero,zero
++; CHECK-NOT:     vpxor
++; CHECK-NOT:     vpand
++; CHECK-NOT:     vpblendw
++; CHECK-NEXT:    ret{{[l|q]}}
++  %out = shufflevector <32 x i8> %a0, <32 x i8> zeroinitializer,
++    <32 x i32> <i32 0, i32 1, i32 32, i32 32, i32 32, i32 32, i32 32, i32 32,
++                i32 8, i32 9, i32 32, i32 32, i32 32, i32 32, i32 32, i32 32,
++                i32 16, i32 17, i32 48, i32 48, i32 48, i32 48, i32 48, i32 48,
++                i32 24, i32 25, i32 48, i32 48, i32 48, i32 48, i32 48, i32 48>
++  ret <32 x i8> %out
++}
++
++define <32 x i8> @sparse_identity_or_zero_variant_b(<32 x i8> %a0) {
++; CHECK-LABEL: sparse_identity_or_zero_variant_b:
++; CHECK:       # %bb.0:
++; CHECK-NEXT:    vpshufb {{.*}} ymm0 = ymm0[2,3],zero,zero,zero,zero,zero,zero,ymm0[10,11],zero,zero,zero,zero,zero,zero,ymm0[18,19],zero,zero,zero,zero,zero,zero,ymm0[26,27],zero,zero,zero,zero,zero,zero
++; CHECK-NOT:     vpxor
++; CHECK-NOT:     vpand
++; CHECK-NOT:     vpblendw
++; CHECK-NEXT:    ret{{[l|q]}}
++  %out = shufflevector <32 x i8> %a0, <32 x i8> zeroinitializer,
++    <32 x i32> <i32 2, i32 3, i32 32, i32 32, i32 32, i32 32, i32 32, i32 32,
++                i32 10, i32 11, i32 32, i32 32, i32 32, i32 32, i32 32, i32 32,
++                i32 18, i32 19, i32 48, i32 48, i32 48, i32 48, i32 48, i32 48,
++                i32 26, i32 27, i32 48, i32 48, i32 48, i32 48, i32 48, i32 48>
++  ret <32 x i8> %out
++}
++
++define <32 x i8> @sparse_identity_or_zero_variant_c(<32 x i8> %a0) {
++; CHECK-LABEL: sparse_identity_or_zero_variant_c:
++; CHECK:       # %bb.0:
++; CHECK-NEXT:    vpshufb {{.*}} ymm0 = ymm0[0,1],zero,zero,ymm0[4,5],zero,zero,ymm0[8,9],zero,zero,ymm0[12,13],zero,zero,ymm0[16,17],zero,zero,ymm0[20,21],zero,zero,ymm0[24,25],zero,zero,ymm0[28,29],zero,zero
++; CHECK-NOT:     vpxor
++; CHECK-NOT:     vpand
++; CHECK-NOT:     vpblendw
++; CHECK-NEXT:    ret{{[l|q]}}
++  %out = shufflevector <32 x i8> %a0, <32 x i8> zeroinitializer,
++    <32 x i32> <i32 0, i32 1, i32 32, i32 32, i32 4, i32 5, i32 32, i32 32,
++                i32 8, i32 9, i32 32, i32 32, i32 12, i32 13, i32 32, i32 32,
++                i32 16, i32 17, i32 48, i32 48, i32 20, i32 21, i32 48, i32 48,
++                i32 24, i32 25, i32 48, i32 48, i32 28, i32 29, i32 48, i32 48>
++  ret <32 x i8> %out
++}
++
++; One zero i16 pair per lane: pre-widen still applies, sparse combine guard does not.
++define <32 x i8> @sparse_one_zero_word_pair_per_lane(<32 x i8> %a0) {
++; CHECK-LABEL: sparse_one_zero_word_pair_per_lane:
++; CHECK:       # %bb.0:
++; CHECK-NEXT:    vpshufb {{.*}} ymm0 = ymm0[0,1],zero,zero,ymm0[4,5,6,7,8,9],zero,zero,ymm0[12,13,14,15,16,17],zero,zero,ymm0[20,21,22,23,24,25],zero,zero,ymm0[28,29,30,31]
++; CHECK-NOT:     vpxor
++; CHECK-NOT:     vpand
++; CHECK-NOT:     vpblendw
++; CHECK-NEXT:    ret{{[l|q]}}
++  %out = shufflevector <32 x i8> %a0, <32 x i8> zeroinitializer,
++    <32 x i32> <i32 0, i32 1, i32 32, i32 32, i32 4, i32 5, i32 6, i32 7,
++                i32 8, i32 9, i32 32, i32 32, i32 12, i32 13, i32 14, i32 15,
++                i32 16, i32 17, i32 48, i32 48, i32 20, i32 21, i32 22, i32 23,
++                i32 24, i32 25, i32 48, i32 48, i32 28, i32 29, i32 30, i32 31>
++  ret <32 x i8> %out
++}
++
++; Two-source cross-lane shuffle: must not fold to single-source sparse vpshufb.
++define <32 x i8> @sparse_two_source_cross_lane(<32 x i8> %a0, <32 x i8> %a1) {
++; CHECK-LABEL: sparse_two_source_cross_lane:
++; CHECK:       # %bb.0:
++; CHECK-NEXT:    vpxor {{.*}}
++; CHECK-NEXT:    vpshufb {{.*}}
++; CHECK-NEXT:    vinserti128 {{.*}}
++; CHECK-NEXT:    vpblendw {{.*}}
++; CHECK-NEXT:    ret{{[l|q]}}
++  %out = shufflevector <32 x i8> %a0, <32 x i8> %a1,
++    <32 x i32> <i32 0, i32 1, i32 32, i32 32, i32 32, i32 32, i32 32, i32 32,
++                i32 8, i32 9, i32 32, i32 32, i32 32, i32 32, i32 32, i32 32,
++                i32 32, i32 33, i32 48, i32 48, i32 48, i32 48, i32 48, i32 48,
++                i32 40, i32 41, i32 48, i32 48, i32 48, i32 48, i32 48, i32 48>
++  ret <32 x i8> %out
++}
