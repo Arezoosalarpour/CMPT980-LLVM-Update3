@@ -29,13 +29,14 @@ legal PSHUFB representation back to a blend.
 
 ## Main Results
 
-- Variants A and C lower to a single `vpshufb`.
-- Variant B remains unchanged as the control case.
-- The final comparison found no assembly changes in 70 unrelated functions.
-- The regression and semantic tests passed.
-- The function's `.text` size decreased from 11 bytes to 10 bytes.
-- The `llvm-mca` results showed that the preferred representation depends
-  on the target CPU.
+## Main Results
+
+- Variants A, B, and C lower to a single `vpshufb`.
+- The existing `combine_and_pshufb` case also lowers to one `vpshufb`.
+- The final comparison found no assembly changes in the other 70 existing functions.
+- The primary FileCheck configurations, broader regression tests, and semantic tests passed.
+- The target function’s `.text` size decreased from 11 bytes to 10 bytes.
+- The `llvm-mca` results showed that the preferred representation depends on the target CPU.
 - The broader investigation evaluated 105 additional masks.
 
 ## Main Files
